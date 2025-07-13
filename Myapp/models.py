@@ -51,3 +51,31 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+from django.db import models
+from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+class Complaint(models.Model):
+    CATEGORY_CHOICES = [
+        ('electricity', 'Electricity'),
+        ('water', 'Water'),
+        ('garbage', 'Garbage'),
+        ('other', 'Other'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    description = models.TextField()
+    image = models.ImageField(upload_to='complaint_images/', blank=True, null=True)
+    
+    ward_number = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Enter a ward number between 1 and 10"
+    )
+
+    live_location = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, default='pending')  # admin will update this
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.full_name} - Ward {self.ward_number} - {self.category}"

@@ -39,10 +39,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
      'rest_framework',        # Keep DRF separate
     'rest_framework.authtoken',  # If you're using Token Auth
-    'Myapp',                 # Your custom app name
+    'Myapp', 
+        
+    # Your custom app name
    
 ]
 AUTH_USER_MODEL = 'Myapp.User'
+
 
 
 MIDDLEWARE = [
@@ -146,6 +149,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        
     ),
 }
 

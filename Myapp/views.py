@@ -119,3 +119,64 @@ def custom_login_view(request):
         'access': str(refresh.access_token),
         'message': "Login successful"
     }, status=status.HTTP_200_OK)
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Complaint
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_complaint(request):
+    try:
+        category = request.data.get('category')
+        description = request.data.get('description')
+        image = request.FILES.get('image')  # optional
+        ward_number = request.data.get('ward_number')
+        live_location = request.data.get('live_location')
+
+        if not all([category, description, ward_number, live_location]):
+            return Response({'error': 'Missing required fields.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        complaint = Complaint.objects.create(
+            user=request.user,
+            category=category,
+            description=description,
+            image=image,
+            ward_number=int(ward_number),
+            live_location=live_location
+        )
+
+        return Response({'message': 'Complaint submitted successfully.', 'complaint_id': complaint.id}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Complaint
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_complaints(request):
+    complaints = Complaint.objects.filter(user=request.user).order_by('-created_at')
+    
+    data = [
+        {
+            'id': comp.id,
+            'category': comp.category,
+            'description': comp.description,
+            'image': request.build_absolute_uri(comp.image.url) if comp.image else None,
+            'ward_number': comp.ward_number,
+            'live_location': comp.live_location,
+            'status': comp.status,
+            'created_at': comp.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        for comp in complaints
+    ]
+    
+    return Response(data, status=status.HTTP_200_OK)
