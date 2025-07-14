@@ -40,6 +40,7 @@ INSTALLED_APPS = [
      'rest_framework',        # Keep DRF separate
     'rest_framework.authtoken',  # If you're using Token Auth
     'Myapp', 
+     'rest_framework_simplejwt.token_blacklist',
         
     # Your custom app name
    

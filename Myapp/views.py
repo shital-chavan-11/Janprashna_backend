@@ -180,3 +180,52 @@ def my_complaints(request):
     ]
     
     return Response(data, status=status.HTTP_200_OK)
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from rest_framework import status as http_status
+from .models import Complaint
+
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])
+def update_complaint_status(request, complaint_id):
+    try:
+        complaint = Complaint.objects.get(id=complaint_id)
+        new_status = request.data.get('status')
+
+        if new_status not in ['pending', 'working', 'resolved', 'rejected']:
+            return Response({'error': 'Invalid status. Must be pending, working, resolved, or rejected.'},
+                            status=http_status.HTTP_400_BAD_REQUEST)
+
+        complaint.status = new_status
+        complaint.save()
+
+        return Response({'message': f'Status updated to {new_status}.'}, status=http_status.HTTP_200_OK)
+
+    except Complaint.DoesNotExist:
+        return Response({'error': 'Complaint not found.'}, status=http_status.HTTP_404_NOT_FOUND)
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    try:
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
+            return Response({"error": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+
+        return Response({"message": "Logout successful."}, status=status.HTTP_205_RESET_CONTENT)
+
+    except TokenError:
+        return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
