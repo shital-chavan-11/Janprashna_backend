@@ -1,6 +1,4 @@
 from django.shortcuts import render
-
-
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
 from django.core.mail import send_mail
@@ -93,30 +91,57 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import authenticate, get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
+# Get the custom user model
 User = get_user_model()
 
 @api_view(['POST'])
 def custom_login_view(request):
+    """
+    Custom login view that authenticates the user using email and password,
+    checks if the user is verified, and returns JWT access & refresh tokens.
+    """
+
+    # Get email and password from request body
     email = request.data.get('email')
     password = request.data.get('password')
 
+    # Check if both email and password are provided
     if not email or not password:
-        return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Email and password are required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
+    # Authenticate user using Django's built-in method
     user = authenticate(request, username=email, password=password)
 
+    # If authentication fails
     if user is None:
-        return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"error": "Invalid credentials."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
 
+    # Optional: Check if the user has verified their email with OTP
     if not user.is_verified:
-        return Response({"error": "Email not verified with OTP."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"error": "Email not verified with OTP."},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
-    # ✅ Generate access and refresh tokens
+    # Generate refresh and access tokens using SimpleJWT
     refresh = RefreshToken.for_user(user)
+
+    # Return tokens to the frontend (store them in localStorage or cookies)
     return Response({
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
+        'refresh': str(refresh),                      # Long-lived token (can be used to get new access token)
+        'access': str(refresh.access_token),          # Short-lived token (used for authenticated requests)
         'message': "Login successful"
     }, status=status.HTTP_200_OK)
 
