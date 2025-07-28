@@ -140,10 +140,14 @@ def custom_login_view(request):
 
     # Return tokens to the frontend (store them in localStorage or cookies)
     return Response({
-        'refresh': str(refresh),                      # Long-lived token (can be used to get new access token)
-        'access': str(refresh.access_token),          # Short-lived token (used for authenticated requests)
-        'message': "Login successful"
-    }, status=status.HTTP_200_OK)
+    'refresh': str(refresh),
+    'access': str(refresh.access_token),
+    'is_superuser': user.is_superuser,
+    'is_staff': user.is_staff,  # ✅ add this line
+    'message': "Login successful"
+    
+}, status=status.HTTP_200_OK)
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -254,3 +258,44 @@ def logout_view(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Complaint
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_complaints(request):
+    """
+    Admin-only view to fetch all complaints.
+    Requires JWT Auth with IsAuthenticated.
+    """
+
+    # Check if the authenticated user is a superuser
+    if not request.user.is_superuser:
+        return Response(
+            {'error': 'You do not have permission to view all complaints.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # Fetch all complaints, newest first
+    complaints = Complaint.objects.all().order_by('-created_at')
+
+    # Serialize complaints manually
+    data = []
+    for comp in complaints:
+        data.append({
+            'id': comp.id,
+            'user': getattr(comp.user, 'full_name', str(comp.user)),  # fallback to username/email if full_name doesn't exist
+            'category': comp.category,
+            'description': comp.description,
+            'image': request.build_absolute_uri(comp.image.url) if comp.image else None,
+            'ward_number': comp.ward_number,
+            'live_location': comp.live_location,
+            'status': comp.status,
+            'created_at': comp.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        })
+
+    return Response(data, status=status.HTTP_200_OK)
+
