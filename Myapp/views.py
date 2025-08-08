@@ -298,4 +298,3 @@ def get_all_complaints(request):
         })
 
     return Response(data, status=status.HTTP_200_OK)
-

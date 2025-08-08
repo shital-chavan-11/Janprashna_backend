@@ -37,11 +37,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-     'rest_framework',        # Keep DRF separate
-    'rest_framework.authtoken',  # If you're using Token Auth
+    'rest_framework',       
+    'rest_framework.authtoken',  
     'Myapp', 
-     'rest_framework_simplejwt.token_blacklist',
-     'corsheaders',
+    'rest_framework_simplejwt.token_blacklist',
+    'corsheaders',
      
 
         
@@ -185,5 +185,26 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
+
+
+import os
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'complaint_images')
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ✅ Add these at the bottom of your settings.py
+
+# Serve user-uploaded files (like complaint images)
+MEDIA_URL = '/media/'
+
+
+# ✅ This is correct
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
 
 
