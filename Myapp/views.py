@@ -85,68 +85,57 @@ def verify_otp(request):
         return JsonResponse({"message": "User registered successfully!"}, status=201)
     else:
         return JsonResponse({"error": "Only POST method is allowed."}, status=405)
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.decorators import api_view
+# views.py
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import authenticate
-from django.contrib.auth import get_user_model
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 
-# Get the custom user model
 User = get_user_model()
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def custom_login_view(request):
-    """
-    Custom login view that authenticates the user using email and password,
-    checks if the user is verified, and returns JWT access & refresh tokens.
-    """
-
-    # Get email and password from request body
     email = request.data.get('email')
     password = request.data.get('password')
 
-    # Check if both email and password are provided
     if not email or not password:
-        return Response(
-            {"error": "Email and password are required."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "Email and password are required"}, status=400)
 
-    # Authenticate user using Django's built-in method
+    # Authenticate user (USERNAME_FIELD = 'email')
     user = authenticate(request, username=email, password=password)
+    if not user:
+        return Response({"error": "Invalid credentials"}, status=400)
 
-    # If authentication fails
-    if user is None:
-        return Response(
-            {"error": "Invalid credentials."},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-
-    # Optional: Check if the user has verified their email with OTP
-    if not user.is_verified:
-        return Response(
-            {"error": "Email not verified with OTP."},
-            status=status.HTTP_403_FORBIDDEN
-        )
-
-    # Generate refresh and access tokens using SimpleJWT
+    # Generate JWT tokens
     refresh = RefreshToken.for_user(user)
 
-    # Return tokens to the frontend (store them in localStorage or cookies)
-    return Response({
-    'refresh': str(refresh),
-    'access': str(refresh.access_token),
-    'is_superuser': user.is_superuser,
-    'is_staff': user.is_staff,  # ✅ add this line
-    'message': "Login successful"
-    
-}, status=status.HTTP_200_OK)
+    response = Response({
+        "message": "Login successful",
+        "is_superuser": user.is_superuser,
+        "is_staff": user.is_staff,
+          "access_token": str(refresh.access_token),  # for debugging in Postman
+        "refresh_token": str(refresh)  
+    })
+
+    # Store both tokens in HTTP-only cookies
+    response.set_cookie(
+        key="access_token",
+        value=str(refresh.access_token),
+        httponly=True,
+        secure=False,  # Change to True in production with HTTPS
+        samesite="Lax"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=str(refresh),
+        httponly=True,
+        secure=False,
+        samesite="Lax"
+    )
+
+    return response
 
 
 from rest_framework.decorators import api_view, permission_classes
@@ -242,22 +231,41 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
+    """
+    Logs out a user by blacklisting their refresh token.
+    Requires: { "refresh": "<refresh_token_here>" }
+    """
     try:
         refresh_token = request.data.get("refresh")
 
+        # If refresh token is missing
         if not refresh_token:
-            return Response({"error": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Refresh token is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Blacklist the refresh token
         token = RefreshToken(refresh_token)
         token.blacklist()
 
-        return Response({"message": "Logout successful."}, status=status.HTTP_205_RESET_CONTENT)
+        return Response(
+            {"message": "Logout successful."},
+            status=status.HTTP_205_RESET_CONTENT
+        )
 
     except TokenError:
-        return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Invalid or expired token."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -298,3 +306,41 @@ def get_all_complaints(request):
         })
 
     return Response(data, status=status.HTTP_200_OK)
+# Myapp/views.py (or wherever)
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.exceptions import TokenError
+
+User = get_user_model()
+
+@api_view(['GET'])
+@permission_classes([AllowAny])  # We'll manually check token from cookie
+def me_view(request):
+    token = request.COOKIES.get('access_token')
+    if not token:
+        return Response({"detail": "Authentication credentials were not provided."},
+                        status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        access = AccessToken(token)   # will raise TokenError if invalid/expired
+    except TokenError:
+        return Response({"detail": "Invalid or expired token."},
+                        status=status.HTTP_401_UNAUTHORIZED)
+
+    user_id = access.get('user_id') or access.get('user_id')  # standard claim
+    if not user_id:
+        return Response({"detail": "Invalid token payload."},
+                        status=status.HTTP_401_UNAUTHORIZED)
+
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"detail": "User not found."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    return Response({
+        "email": user.email,
+        "is_superuser": user.is_superuser,
+        "is_staff": user.is_staff,
+    }, status=status.HTTP_200_OK)
