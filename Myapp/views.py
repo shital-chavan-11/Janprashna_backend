@@ -85,7 +85,6 @@ def verify_otp(request):
         return JsonResponse({"message": "User registered successfully!"}, status=201)
     else:
         return JsonResponse({"error": "Only POST method is allowed."}, status=405)
-# views.py
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -103,36 +102,36 @@ def custom_login_view(request):
     if not email or not password:
         return Response({"error": "Email and password are required"}, status=400)
 
-    # Authenticate user (USERNAME_FIELD = 'email')
     user = authenticate(request, username=email, password=password)
     if not user:
         return Response({"error": "Invalid credentials"}, status=400)
 
-    # Generate JWT tokens
     refresh = RefreshToken.for_user(user)
 
     response = Response({
         "message": "Login successful",
         "is_superuser": user.is_superuser,
         "is_staff": user.is_staff,
-          "access_token": str(refresh.access_token),  # for debugging in Postman
-        "refresh_token": str(refresh)  
+        # tokens also in response for convenience/debugging
+        "access_token": str(refresh.access_token),
+        "refresh_token": str(refresh),
     })
 
-    # Store both tokens in HTTP-only cookies
     response.set_cookie(
         key="access_token",
         value=str(refresh.access_token),
         httponly=True,
-        secure=False,  # Change to True in production with HTTPS
-        samesite="Lax"
+        secure=False,      # False for local dev over HTTP
+        samesite="Lax",    # Lax for local dev
+        path="/",
     )
     response.set_cookie(
         key="refresh_token",
         value=str(refresh),
         httponly=True,
         secure=False,
-        samesite="Lax"
+        samesite="Lax",
+        path="/",
     )
 
     return response
@@ -223,48 +222,31 @@ def update_complaint_status(request, complaint_id):
     except Complaint.DoesNotExist:
         return Response({'error': 'Complaint not found.'}, status=http_status.HTTP_404_NOT_FOUND)
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny  # allow even expired tokens
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def logout_view(request):
-    """
-    Logs out a user by blacklisting their refresh token.
-    Requires: { "refresh": "<refresh_token_here>" }
-    """
+    refresh_token = request.COOKIES.get('refresh_token')
+    if not refresh_token:
+        return Response({"error": "No refresh token found."}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
-        refresh_token = request.data.get("refresh")
-
-        # If refresh token is missing
-        if not refresh_token:
-            return Response(
-                {"error": "Refresh token is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Blacklist the refresh token
         token = RefreshToken(refresh_token)
         token.blacklist()
-
-        return Response(
-            {"message": "Logout successful."},
-            status=status.HTTP_205_RESET_CONTENT
-        )
-
     except TokenError:
-        return Response(
-            {"error": "Invalid or expired token."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)
 
-    except Exception as e:
-        return Response(
-            {"error": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    response = Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
+    # Delete the auth cookies
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+    return response
+
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated

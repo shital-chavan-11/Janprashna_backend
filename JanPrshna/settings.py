@@ -39,14 +39,17 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'Myapp.User'
 
 MIDDLEWARE = [
+       "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    
+ 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'JanPrshna.urls'
@@ -110,6 +113,8 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
     }
 }
+ALLOWED_HOSTS = []
+CSRF_COOKIE_HTTPONLY = True
 
 # Email settings for sending OTP
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -143,8 +148,14 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
 ]
 
-# Cookie settings for cross-origin auth
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = False  # Set True in production (HTTPS)
+# # Cookie settings for cross-origin auth
+# SESSION_COOKIE_SAMESITE = "None"
+# CSRF_COOKIE_SAMESITE = "None"
+# SESSION_COOKIE_SECURE = False  # Set True in production (HTTPS)
+# CSRF_COOKIE_SECURE = False
+  
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+
