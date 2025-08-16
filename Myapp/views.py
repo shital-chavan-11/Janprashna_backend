@@ -136,91 +136,69 @@ def custom_login_view(request):
 
     return response
 
-
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Complaint
+from .authentication import CookieJWTAuthentication
 
 @api_view(['POST'])
+@authentication_classes([CookieJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def submit_complaint(request):
+    category = request.data.get('category')
+    description = request.data.get('description')
+    image = request.FILES.get('image')  # optional
+    ward_number = request.data.get('ward_number')
+    live_location = request.data.get('live_location')
+
+    if not all([category, description, ward_number, live_location]):
+        return Response({'error': 'Missing required fields'}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
-        category = request.data.get('category')
-        description = request.data.get('description')
-        image = request.FILES.get('image')  # optional
-        ward_number = request.data.get('ward_number')
-        live_location = request.data.get('live_location')
+        ward_number = int(ward_number)
+    except:
+        return Response({'error': 'Ward number must be integer'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not all([category, description, ward_number, live_location]):
-            return Response({'error': 'Missing required fields.'}, status=status.HTTP_400_BAD_REQUEST)
+    complaint = Complaint.objects.create(
+        user=request.user,
+        category=category,
+        description=description,
+        image=image,
+        ward_number=ward_number,
+        live_location=live_location
+    )
 
-        complaint = Complaint.objects.create(
-            user=request.user,
-            category=category,
-            description=description,
-            image=image,
-            ward_number=int(ward_number),
-            live_location=live_location
-        )
+    return Response({'message': 'Complaint submitted successfully', 'complaint_id': complaint.id}, status=status.HTTP_201_CREATED)
 
-        return Response({'message': 'Complaint submitted successfully.', 'complaint_id': complaint.id}, status=status.HTTP_201_CREATED)
-
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 from .models import Complaint
+from .authentication import CookieJWTAuthentication
 
 @api_view(['GET'])
+@authentication_classes([CookieJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def my_complaints(request):
     complaints = Complaint.objects.filter(user=request.user).order_by('-created_at')
-    
     data = [
         {
-            'id': comp.id,
-            'category': comp.category,
-            'description': comp.description,
-            'image': request.build_absolute_uri(comp.image.url) if comp.image else None,
-            'ward_number': comp.ward_number,
-            'live_location': comp.live_location,
-            'status': comp.status,
-            'created_at': comp.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            'id': c.id,
+            'category': c.category,
+            'description': c.description,
+            'image': request.build_absolute_uri(c.image.url) if c.image else None,
+            'ward_number': c.ward_number,
+            'live_location': c.live_location,
+            'status': c.status,
+            'created_at': c.created_at.isoformat()
         }
-        for comp in complaints
+        for c in complaints
     ]
-    
-    return Response(data, status=status.HTTP_200_OK)
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
-from rest_framework.response import Response
-from rest_framework import status as http_status
-from .models import Complaint
+    return Response(data)
 
-@api_view(['PATCH'])
-@permission_classes([IsAdminUser])
-def update_complaint_status(request, complaint_id):
-    try:
-        complaint = Complaint.objects.get(id=complaint_id)
-        new_status = request.data.get('status')
 
-        if new_status not in ['pending', 'working', 'resolved', 'rejected']:
-            return Response({'error': 'Invalid status. Must be pending, working, resolved, or rejected.'},
-                            status=http_status.HTTP_400_BAD_REQUEST)
-
-        complaint.status = new_status
-        complaint.save()
-
-        return Response({'message': f'Status updated to {new_status}.'}, status=http_status.HTTP_200_OK)
-
-    except Complaint.DoesNotExist:
-        return Response({'error': 'Complaint not found.'}, status=http_status.HTTP_404_NOT_FOUND)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny  # allow even expired tokens
 from rest_framework.response import Response
@@ -246,38 +224,23 @@ def logout_view(request):
     response.delete_cookie("refresh_token", path="/")
     return response
 
-
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Complaint
+from .authentication import CookieJWTAuthentication
 
+# ✅ Admin: Get all complaints
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@authentication_classes([CookieJWTAuthentication])
+@permission_classes([IsAuthenticated, IsAdminUser])
 def get_all_complaints(request):
-    """
-    Admin-only view to fetch all complaints.
-    Requires JWT Auth with IsAuthenticated.
-    """
-
-    # Check if the authenticated user is a superuser
-    if not request.user.is_superuser:
-        return Response(
-            {'error': 'You do not have permission to view all complaints.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-
-    # Fetch all complaints, newest first
     complaints = Complaint.objects.all().order_by('-created_at')
-
-    # Serialize complaints manually
-    data = []
-    for comp in complaints:
-        data.append({
+    data = [
+        {
             'id': comp.id,
-            'user': getattr(comp.user, 'full_name', str(comp.user)),  # fallback to username/email if full_name doesn't exist
+            'user': getattr(comp.user, 'full_name', str(comp.user)),
             'category': comp.category,
             'description': comp.description,
             'image': request.build_absolute_uri(comp.image.url) if comp.image else None,
@@ -285,44 +248,88 @@ def get_all_complaints(request):
             'live_location': comp.live_location,
             'status': comp.status,
             'created_at': comp.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        })
-
+        }
+        for comp in complaints
+    ]
     return Response(data, status=status.HTTP_200_OK)
-# Myapp/views.py (or wherever)
+
+# ✅ Admin: Update complaint status
+@api_view(['PATCH'])
+@authentication_classes([CookieJWTAuthentication])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def update_complaint_status(request, complaint_id):
+    try:
+        complaint = Complaint.objects.get(id=complaint_id)
+        new_status = request.data.get('status')
+        if new_status not in ['pending', 'working', 'resolved', 'rejected']:
+            return Response({'error': 'Invalid status.'}, status=status.HTTP_400_BAD_REQUEST)
+        complaint.status = new_status
+        complaint.save()
+        return Response({'message': f'Status updated to {new_status}.'}, status=status.HTTP_200_OK)
+    except Complaint.DoesNotExist:
+        return Response({'error': 'Complaint not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# myapp/views.py
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 User = get_user_model()
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # We'll manually check token from cookie
+@permission_classes([AllowAny])
 def me_view(request):
     token = request.COOKIES.get('access_token')
     if not token:
-        return Response({"detail": "Authentication credentials were not provided."},
-                        status=status.HTTP_401_UNAUTHORIZED)
-    try:
-        access = AccessToken(token)   # will raise TokenError if invalid/expired
-    except TokenError:
-        return Response({"detail": "Invalid or expired token."},
-                        status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"detail": "Authentication credentials were not provided."}, status=401)
 
-    user_id = access.get('user_id') or access.get('user_id')  # standard claim
-    if not user_id:
-        return Response({"detail": "Invalid token payload."},
-                        status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        access = AccessToken(token)
+        user_id = access.get('user_id')
+    except (TokenError, InvalidToken):
+        return Response({"detail": "Invalid or expired token."}, status=401)
 
     user = User.objects.filter(id=user_id).first()
     if not user:
-        return Response({"detail": "User not found."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"detail": "User not found."}, status=401)
 
     return Response({
-        "email": user.email,
-        "is_superuser": user.is_superuser,
-        "is_staff": user.is_staff,
-    }, status=status.HTTP_200_OK)
+        "email": getattr(user, 'email', ''),
+        "full_name": getattr(user, 'full_name', getattr(user, 'email', '')),
+        "is_superuser": getattr(user, 'is_superuser', False),
+        "is_staff": getattr(user, 'is_staff', False),
+    }, status=200)
+# views.py
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.db.models import Count
+from django.db.models.functions import ExtractMonth
+from datetime import datetime
+from .models import Complaint
+from .authentication import CookieJWTAuthentication
+
+@api_view(['GET'])
+@authentication_classes([CookieJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def complaints_chart_data(request):
+    year = datetime.now().year
+    queryset = Complaint.objects.filter(created_at__year=year)
+
+    # Group by month and status
+    data = queryset.annotate(month=ExtractMonth('created_at')) \
+                   .values('month', 'status') \
+                   .annotate(count=Count('id')) \
+                   .order_by('month')
+
+    chart_data = {status: [0]*12 for status in ['pending', 'working', 'resolved', 'rejected']}
+    for item in data:
+        month_index = item['month'] - 1
+        chart_data[item['status']][month_index] = item['count']
+
+    return Response(chart_data)

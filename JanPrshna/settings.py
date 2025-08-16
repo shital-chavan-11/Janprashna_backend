@@ -128,9 +128,12 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # DRF & JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+     
+        'rest_framework.authentication.SessionAuthentication',  # optional
+        
     ),
 }
+
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
@@ -139,23 +142,21 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-# CORS & CSRF settings for React frontend
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-]
 
-# # Cookie settings for cross-origin auth
-# SESSION_COOKIE_SAMESITE = "None"
-# CSRF_COOKIE_SAMESITE = "None"
-# SESSION_COOKIE_SECURE = False  # Set True in production (HTTPS)
-# CSRF_COOKIE_SECURE = False
-  
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
 
+
+#
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_DOMAIN = "localhost"
+CSRF_COOKIE_DOMAIN = "localhost"
