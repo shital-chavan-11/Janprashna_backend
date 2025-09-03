@@ -75,9 +75,9 @@ WSGI_APPLICATION = 'JanPrshna.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'new',
+        'NAME': 'jan',
         'USER': 'postgres',
-        'PASSWORD': '7070',
+        'PASSWORD': 'aq1256@',
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -136,7 +136,7 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=20),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,

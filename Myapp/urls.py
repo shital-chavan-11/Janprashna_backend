@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import register_user, verify_otp,custom_login_view,submit_complaint,my_complaints,update_complaint_status,logout_view,get_all_complaints, me_view,complaints_chart_data
-
+from .views import create_scheme, complaint_stats, monthwise_announcement_stats,register_user,get_user_and_ward_bills,get_schemes, verify_otp,custom_login_view,submit_complaint,my_complaints,update_complaint_status,logout_view,get_all_complaints, me_view,complaints_chart_data,create_announcement,list_announcements,create_bill,complaints_chart_data
+from . views import get_profile, auth_check, monthly_stats, latest_announcements, update_scheme, delete_scheme,delete_bill,update_bill,get_all_ward_bills,get_all_announcements,update_announcement,delete_announcement,refresh_access_token,document_detail_api,documents_list_api,submit_doubt,get_all_doubts,reply_doubt, add_document_api,update_profile,request_email_change,verify_email_otp
 urlpatterns = [
     path('register/', register_user, name='register'),
     path('verify-otp/', verify_otp, name='verify-otp'),
     path('login/', custom_login_view, name='custom_login'),
+    path("refresh/",refresh_access_token,name="refresh_access_token"),
     path('complaints/submit/', submit_complaint, name='submit_complaint'),
     path('mine/', my_complaints, name='my-complaints'),
     path('complaints/<int:complaint_id>/status/', update_complaint_status, name='update_complaint_status'),
@@ -12,5 +13,38 @@ urlpatterns = [
     path('complaints/', get_all_complaints, name='get_all_complaints'),
     path('me/', me_view,name='me_view'),
      path('complaints/chart/', complaints_chart_data, name='complaints-chart'),
-  
+     path('announcements/create/', create_announcement, name='create_announcement'),
+      path('announcements/', list_announcements, name='list_announcements'),
+     path('bills/create/', create_bill, name='create_bill'),
+     path('bills/get/',get_user_and_ward_bills , name='get_user_and_ward_bills'),
+     path('schemes/create/', create_scheme, name='create_scheme'),
+      path('schemes/get/', get_schemes, name='get_schemes'),
+      path('complaints/stats/', complaint_stats, name='complaint_stats'),
+      path('announcements/stats/', monthwise_announcement_stats, name='monthwise_announcement_stats'),
+       path('profile/', get_profile, name='get_profile'),
+       path("check/", auth_check, name="auth_check"),
+       path("stats/monthly/", monthly_stats, name="monthly_stats"),
+       path("latest/", latest_announcements, name="latest_announcements"),
+           path("schemes/update/<int:pk>/", update_scheme, name="update_scheme"),
+    path("schemes/delete/<int:pk>/", delete_scheme, name="delete_scheme"),
+    path("bills/delete/<int:pk>/", delete_bill, name="delete_bill"),
+    path("bills/update/<int:pk>/", update_bill, name="update_bill_file"),
+    path("all-ward-bills/", get_all_ward_bills, name="all_ward_bills"),
+     path("announcements/get/", get_all_announcements, name="get_all_announcements"),
+    path("announcements/update/<int:pk>/", update_announcement, name="update_announcement"),
+    path("announcements/delete/<int:pk>/", delete_announcement, name="delete_announcement"),
+     path('documents/<int:id>/', document_detail_api, name='document-detail'),
+       path('documents/', documents_list_api, name='documents-list'),
+       path('add-document/', add_document_api, name='add_document_api'),
+      path("doubts/submit/", submit_doubt, name="submit-doubt"),
+       path("doubts/", get_all_doubts, name="get_all_doubts"),
+       path("doubts/<int:doubt_id>/reply/", reply_doubt, name="reply_doubt"),
+       path('complaints/chart/', complaints_chart_data, name='complaints-chart'),
+       path("profile/", get_profile, name="get_profile"),
+       path("profile/update/", update_profile, name="update_profile"),
+       path("profile/change-email/", request_email_change, name="request_email_change"),
+       path("profile/verify-email-otp/", verify_email_otp, name="verify_email_otp"),
 ]
+
+
+
