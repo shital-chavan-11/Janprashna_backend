@@ -170,6 +170,174 @@ def refresh_access_token(request):
 
     return response
 
+# ================= Imports =================
+from django.views.decorators.csrf import csrf_exempt
+from django.core.cache import cache
+from django.core.mail import send_mail
+from django.http import JsonResponse
+from django.utils import timezone
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth import get_user_model
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from .authentication import CookieJWTAuthentication
+import random
+import json
+
+# ================= Models =================
+User = get_user_model()
+
+# ================= Constants =================
+OTP_EXPIRY_SECONDS = 600  # 10 minutes
+
+# ================= Helpers =================
+def _norm_email(e: str) -> str:
+    return (e or "").strip().lower()
+
+def _otp_key(prefix: str, email: str) -> str:
+    return f"{prefix}:{_norm_email(email)}"
+
+# ================= Forgot Password =================
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password_request(request):
+    """ Step 1: Request OTP for forgot password """
+    email = request.data.get("email")
+    if not email:
+        return JsonResponse({"error": "Email is required"}, status=400)
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "Email not found"}, status=404)
+
+    otp = str(random.randint(100000, 999999))
+    cache.set(_otp_key("fp", email), {"otp": otp, "verified": False}, timeout=OTP_EXPIRY_SECONDS)
+
+    send_mail(
+        subject="Your Password Reset OTP",
+        message=f"Hello {user.full_name}, your OTP to reset password is: {otp}",
+        from_email="abhisheksavalgi601@gmail.com",
+        recipient_list=[email],
+        fail_silently=False,
+    )
+
+    return JsonResponse({"message": "OTP sent to your email."}, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password_verify_otp(request):
+    """ Step 2: Verify OTP """
+    email = request.data.get("email")
+    otp_input = request.data.get("otp")
+
+    if not email or not otp_input:
+        return JsonResponse({"error": "Email and OTP are required"}, status=400)
+
+    key = _otp_key("fp", email)
+    cached_data = cache.get(key)
+    if not cached_data:
+        return JsonResponse({"error": "OTP expired. Please request again."}, status=400)
+
+    if cached_data.get("otp") != otp_input:
+        return JsonResponse({"error": "Invalid OTP"}, status=400)
+
+    # Mark OTP as verified
+    cache.set(key, {"otp": cached_data["otp"], "verified": True}, timeout=OTP_EXPIRY_SECONDS)
+    return JsonResponse({"message": "OTP verified successfully!"}, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password_reset(request):
+    """ Step 3: Reset password after OTP verification """
+    email = request.data.get("email")
+    new_password = request.data.get("new_password")
+    confirm_password = request.data.get("confirm_password")
+
+    if not all([email, new_password, confirm_password]):
+        return JsonResponse({"error": "All fields are required."}, status=400)
+
+    if new_password != confirm_password:
+        return JsonResponse({"error": "Passwords do not match."}, status=400)
+
+    key = _otp_key("fp", email)
+    cached_data = cache.get(key)
+    if not cached_data or not cached_data.get("verified"):
+        return JsonResponse({"error": "OTP not verified or expired."}, status=400)
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found."}, status=404)
+
+    user.password = make_password(new_password)
+    user.save()
+    cache.delete(key)
+
+    return JsonResponse({"message": "Password reset successfully!"}, status=200)
+
+# ================= Email Change =================
+
+@api_view(["POST"])
+@authentication_classes([CookieJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def request_email_change(request):
+    """ Request OTP for changing email """
+    user = request.user
+    new_email = request.data.get("email")
+
+    if not new_email:
+        return Response({"error": "New email is required"}, status=400)
+
+    if new_email == user.email:
+        return Response({"error": "New email must be different from current email"}, status=400)
+
+    if User.objects.filter(email=new_email).exists():
+        return Response({"error": "This email is already in use"}, status=400)
+
+    otp = str(random.randint(100000, 999999))
+    cache.set(_otp_key("ec", new_email), {"otp": otp, "user_id": user.id, "verified": False}, timeout=OTP_EXPIRY_SECONDS)
+
+    send_mail(
+        subject="Email Change OTP",
+        message=f"Hello {user.full_name}, your OTP to change email is: {otp}",
+        from_email="abhisheksavalgi601@gmail.com",
+        recipient_list=[new_email],
+        fail_silently=False,
+    )
+
+    return Response({"message": "OTP sent to new email. Please verify to update email."}, status=200)
+
+
+@api_view(["POST"])
+@authentication_classes([CookieJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def verify_email_otp(request):
+    """ Verify OTP and update user email """
+    user = request.user
+    otp_input = request.data.get("otp")
+    new_email = request.data.get("email")
+
+    if not otp_input or not new_email:
+        return Response({"error": "Email and OTP are required"}, status=400)
+
+    key = _otp_key("ec", new_email)
+    cached_data = cache.get(key)
+    if not cached_data or cached_data.get("user_id") != user.id:
+        return Response({"error": "OTP expired or invalid."}, status=400)
+
+    if cached_data.get("otp") != otp_input:
+        return Response({"error": "Invalid OTP"}, status=400)
+
+    user.email = new_email
+    user.save()
+    cache.delete(key)
+
+    return Response({"message": "Email updated successfully"}, status=200)
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response

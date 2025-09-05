@@ -1,6 +1,8 @@
 from django.urls import path
 from .views import create_scheme, complaint_stats, monthwise_announcement_stats,register_user,get_user_and_ward_bills,get_schemes, verify_otp,custom_login_view,submit_complaint,my_complaints,update_complaint_status,logout_view,get_all_complaints, me_view,complaints_chart_data,create_announcement,list_announcements,create_bill,complaints_chart_data
 from . views import get_profile, auth_check, monthly_stats, latest_announcements, update_scheme, delete_scheme,delete_bill,update_bill,get_all_ward_bills,get_all_announcements,update_announcement,delete_announcement,refresh_access_token,document_detail_api,documents_list_api,submit_doubt,get_all_doubts,reply_doubt, add_document_api,update_profile,request_email_change,verify_email_otp
+from . views import  forgot_password_request,forgot_password_verify_otp, forgot_password_reset
+
 urlpatterns = [
     path('register/', register_user, name='register'),
     path('verify-otp/', verify_otp, name='verify-otp'),
@@ -44,6 +46,10 @@ urlpatterns = [
        path("profile/update/", update_profile, name="update_profile"),
        path("profile/change-email/", request_email_change, name="request_email_change"),
        path("profile/verify-email-otp/", verify_email_otp, name="verify_email_otp"),
+       path('forgot-password-request/', forgot_password_request, name='forgot_password_request'),
+    path('forgot-password-verify-otp/', forgot_password_verify_otp, name='forgot_password_verify_otp'),
+    path('forgot-password-reset/', forgot_password_reset, name='forgot_password_reset'),
+
 ]
 
 
