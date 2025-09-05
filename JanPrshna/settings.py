@@ -29,9 +29,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-
-    # Local apps
-    'Myapp',
 ]
 
 AUTH_USER_MODEL = 'Myapp.User'
