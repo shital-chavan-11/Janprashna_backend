@@ -14,8 +14,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: don't run with debug turned on in production!
  
 
-ALLOWED_HOSTS = []
-
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -114,7 +112,7 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
     }
 }
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["janprashna-backend.onrender.com"]
 CSRF_COOKIE_HTTPONLY = True
 
 # Email settings for sending OTP
