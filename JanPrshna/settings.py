@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+'Myapp.apps.MyappConfig',
 
     # Third-party
     'rest_framework',
@@ -157,14 +158,4 @@ SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_DOMAIN = "localhost"
 CSRF_COOKIE_DOMAIN = "localhost"
-from django.contrib.auth import get_user_model
 
-User = get_user_model()
-
-ADMIN_USERNAME = "admin"
-ADMIN_EMAIL = "shitalchavan@gmail.com"
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-
-# Only create the superuser if it doesn't exist
-if not User.objects.filter(username=ADMIN_USERNAME).exists():
-    User.objects.create_superuser(ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD)
