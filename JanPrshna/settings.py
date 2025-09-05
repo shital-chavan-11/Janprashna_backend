@@ -141,14 +141,20 @@ SIMPLE_JWT = {
 CORS_ALLOW_CREDENTIALS = True
 SESSION_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = True       # True for HTTPS
+CSRF_COOKIE_SECURE = True          # True for HTTPS
+
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # for local dev
+    "https://janprashan-frontend.onrender.com",  # your deployed frontend
+]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "https://janprashan-frontend.onrender.com",
+]
+ 
 
-
-#
 SESSION_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_SECURE = False

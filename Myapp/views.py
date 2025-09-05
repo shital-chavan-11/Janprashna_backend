@@ -93,7 +93,7 @@ from django.contrib.auth import authenticate, get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
-
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def custom_login_view(request):
@@ -103,8 +103,11 @@ def custom_login_view(request):
     if not email or not password:
         return Response({"error": "Email and password are required"}, status=400)
 
-    user = authenticate(request, username=email, password=password)
-    if not user:
+    try:
+        user = User.objects.get(email=email)
+        if not user.check_password(password):
+            return Response({"error": "Invalid credentials"}, status=400)
+    except User.DoesNotExist:
         return Response({"error": "Invalid credentials"}, status=400)
 
     refresh = RefreshToken.for_user(user)
@@ -113,7 +116,6 @@ def custom_login_view(request):
         "message": "Login successful",
         "is_superuser": user.is_superuser,
         "is_staff": user.is_staff,
-        # tokens also in response for convenience/debugging
         "access_token": str(refresh.access_token),
         "refresh_token": str(refresh),
     })
@@ -122,20 +124,21 @@ def custom_login_view(request):
         key="access_token",
         value=str(refresh.access_token),
         httponly=True,
-        secure=False,      # False for local dev over HTTP
-        samesite="Lax",    # Lax for local dev
+        secure=True,      # True for HTTPS
+        samesite="None",  # None for cross-site
         path="/",
     )
     response.set_cookie(
         key="refresh_token",
         value=str(refresh),
         httponly=True,
-        secure=False,
-        samesite="Lax",
+        secure=True,
+        samesite="None",
         path="/",
     )
 
     return response
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
